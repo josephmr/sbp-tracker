@@ -1,0 +1,20 @@
+{
+  "name": "sbp-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@replit/database": "^2.0.1",
+    "@types/express": "^4.17.13",
+    "@types/node-fetch": "^2.6.1",
+    "express": "^4.17.3",
+    "moment": "^2.29.3",
+    "node-fetch": "^2.6.7"
+  }
+}
