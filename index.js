@@ -1,72 +1,60 @@
 const fetch = require('node-fetch');
 const express = require('express');
-
-// const Database = require("@replit/database");
-// const db = new Database();
-const inMemoryKvs = {};
-const db = {
-  get(key) {
-    return Promise.resolve(inMemoryKvs[key]);
-  },
-  set(key, value) {
-    inMemoryKvs[key] = value;
-    return Promise.resolve();
-  }
-};
+const { init, seed, getSources, addTick, getTicks } = require('./db');
 
 const re = /var data = \{.*?\};/ms;
 
 const UPDATE_MS = 5 * 60 * 1000;
-const UPDATES_PER_DAY = 24 * 60 * 60 * 1000 / UPDATE_MS;
-const MAX_DAYS = 7;
-const MAX_UPDATES = UPDATES_PER_DAY * MAX_DAYS;
 
-async function getOccupancy() {
-  const response = await fetch('https://portal.rockgympro.com/portal/public/314b60a77a6eada788f8cd7046931fc5/occupancy');
+async function getOccupancy(uuid, short) {
+  const response = await fetch(`https://portal.rockgympro.com/portal/public/${uuid}/occupancy`);
   const body = await response.text();
   const match = body.match(re);
   if (match) {
     const data = Function(`${match} return data;`)();
-    return {
-      time: Date.now(),
-      POP: data.POP.count,
-      UPW: data.UPW.count,
-      FRE: data.FRE.count,
-    };
+    if (data[short] === undefined) {
+      console.error('Failed to find short in response: ', uuid, short, body);
+      return null;
+    }
+    return data[short].count;
   }
 
-  console.error('Failed to find occupancy in response: ', body);
+  console.error('Failed to find occupancy in response: ', uuid, short, body);
   return null;
 }
 
-async function trackOccupancy() {
-  const occupancy = await getOccupancy();
-  if (!occupancy) {
-    return;
+async function refreshSources() {
+  const sources = await getSources();
+  for (const source of sources) {
+    const { uuid, short } = source.data;
+    const occupancy = await getOccupancy(uuid, short);
+    if (occupancy !== null) {
+      await addTick(source, occupancy);
+    }
   }
-  let stats = await db.get('stats');
-  if (!stats) {
-    stats = [];
-  }
-  stats.push(occupancy); 
-  if (stats.length > MAX_UPDATES) {
-    stats = stats.slice(stats.length - MAX_UPDATES)
-  }
-  await db.set('stats', stats);
 }
 
-setInterval(trackOccupancy, UPDATE_MS);
-// setInterval doesn't trigger fn initially so we call it here
-trackOccupancy();
+async function main() {
+  await init(process.env.NODE_ENV !== 'production');
+  if (process.env.NODE_ENV === 'development') {
+    await seed();
+  }
 
-const app = express();
+  setInterval(refreshSources, UPDATE_MS);
+  // setInterval doesn't trigger fn initially so we call it here
+  refreshSources();
 
-app.use(express.static('public'));
-app.get('/stats', async (req, res) => {
-  const stats = await db.get('stats');
-  return res.json(stats);
-});
+  const app = express();
 
-app.listen(3000, () => {
-  console.log('listening');
-});
+  app.use(express.static('public'));
+  app.get('/stats', async (_, res) => {
+    const gyms = await getTicks();
+    return res.json(gyms);
+  });
+
+  app.listen(process.env.PORT || 8080, () => {
+    console.log('listening');
+  });
+}
+
+main().catch(console.error);

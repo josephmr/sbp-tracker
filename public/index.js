@@ -3,48 +3,31 @@ fetch('/stats')
   .then(render);
 
 const COLORS = {
-  POP: 'rgba(255, 99, 132, 0.4)',
-  UPW: 'rgba(54, 162, 235, 0.4)',
-  FRE: 'rgba(255, 206, 86, 0.4)',
-};
-
-const NAMES = {
-  POP: 'Poplar',
-  UPW: 'Upper Walls',
-  FRE: 'Fremont',
+  Poplar: 'rgba(255, 99, 132, 0.4)',
+  "Upper Walls": 'rgba(54, 162, 235, 0.4)',
+  Fremont: 'rgba(255, 206, 86, 0.4)',
 };
 
 function render(stats) {
-  stats = stats.reduce((acc, v) => {
-    const keys = Object.keys(v);
-    const time = v['time'];
-    for (const key of keys) {
-      if (key === 'time')
-        continue;
-
-      if (!acc[key]) {
-        acc[key] = {
-          label: NAMES[key],
-          borderColor: COLORS[key],
-          backgroundColor: COLORS[key],
-          pointRadius: 0.2,
-          tension: 0.1,
-          fill: false,
-          data: []
-        }
-      }
-      acc[key].data.push({
-        x: time,
-        y: v[key],
-      });
+  stats = stats.map(gym => {
+    return {
+      label: gym.name,
+      borderColor: COLORS[gym.name],
+      backgroundColor: COLORS[gym.name],
+      pointRadius: 0.2,
+      tension: 0.1,
+      fill: false,
+      data: gym.Ticks.map(t => ({
+        x: t.time,
+        y: t.count,
+      })),
     }
-    return acc;
-  }, {});
-  
+  });
+ 
   const chartConfig = {
     type: 'line',
     data: {
-      datasets: Object.values(stats),
+      datasets: stats,
     },
     options: {
       scales: {
