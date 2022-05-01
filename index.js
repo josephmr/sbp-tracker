@@ -35,9 +35,11 @@ async function refreshSources() {
 }
 
 async function main() {
-  await init(process.env.NODE_ENV !== 'production');
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV !== 'production') {
+    await init(true); // force
     await seed();
+  } else {
+    await init(false);
   }
 
   setInterval(refreshSources, UPDATE_MS);
